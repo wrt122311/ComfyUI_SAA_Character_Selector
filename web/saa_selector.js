@@ -202,8 +202,11 @@ function attachUI(node) {
       const s = await apiGet("/saa_selector/status");
       progress.value = Number(s.progress || 0);
       pLabel.textContent = `${Math.round(Number(s.progress || 0))}%`;
+      const isLoading = Boolean(s.is_loading);
+      progressRow.style.display = isLoading ? "flex" : "none";
       if (s.error) {
         status.textContent = `Error: ${s.error}`;
+        progressRow.style.display = "flex";
       } else {
         status.textContent = s.status || "idle";
       }
@@ -218,6 +221,9 @@ function attachUI(node) {
 
   refreshBtn.addEventListener("click", async () => {
     status.textContent = "Reloading...";
+    progressRow.style.display = "flex";
+    progress.value = 0;
+    pLabel.textContent = "0%";
     await apiPost("/saa_selector/reload");
     refreshStatus();
   });
