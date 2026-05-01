@@ -80,7 +80,8 @@ function ensureStyle() {
     .saa-top input, .saa-top select, .saa-top button { font-size:12px; padding:4px 6px; }
     .saa-progress-row { display:flex; align-items:center; gap:8px; }
     .saa-progress { width:100%; height:10px; }
-    .saa-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
+    .saa-grid { display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
+    .saa-scroll-progress { width:100%; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -138,10 +139,18 @@ function attachUI(node) {
   const grid = document.createElement("div");
   grid.className = "saa-grid";
 
+  const scrollProgress = document.createElement("input");
+  scrollProgress.type = "range";
+  scrollProgress.className = "saa-scroll-progress";
+  scrollProgress.min = "0";
+  scrollProgress.max = "100";
+  scrollProgress.value = "0";
+
   wrap.appendChild(top);
   wrap.appendChild(progressRow);
   wrap.appendChild(status);
   wrap.appendChild(grid);
+  wrap.appendChild(scrollProgress);
 
   node.addDOMWidget("saa_selector", "saa_selector", wrap, {
     getMinHeight: () => 390,
@@ -150,6 +159,27 @@ function attachUI(node) {
   });
 
   let searchTimer = null;
+  let isDraggingProgress = false;
+
+  function updateResponsiveColumns() {
+    const width = Math.max(320, wrap.clientWidth || 320);
+    // Card minimum width target ~170px, with gap and margins accounted for.
+    const cols = Math.max(1, Math.floor((width - 16) / 176));
+    grid.style.setProperty("--saa-cols", String(cols));
+  }
+
+  function updateScrollProgressFromGrid() {
+    const maxScroll = Math.max(0, grid.scrollHeight - grid.clientHeight);
+    if (maxScroll <= 0) {
+      scrollProgress.value = "0";
+      scrollProgress.disabled = true;
+      return;
+    }
+    scrollProgress.disabled = false;
+    if (isDraggingProgress) return;
+    const ratio = (grid.scrollTop / maxScroll) * 100;
+    scrollProgress.value = String(Math.max(0, Math.min(100, ratio)));
+  }
 
   function renderGroupOptions(allGroups, filterText = "") {
     const current = group.value || "All";
@@ -194,6 +224,8 @@ function attachUI(node) {
     const g = encodeURIComponent(group.value || "All");
     const data = await apiGet(`/saa_selector/characters?search=${q}&group=${g}&limit=200`);
     renderCards(node, grid, data.items || []);
+    updateResponsiveColumns();
+    updateScrollProgressFromGrid();
     status.textContent = `Loaded ${data.items?.length || 0} items`;
   }
 
@@ -253,12 +285,35 @@ function attachUI(node) {
     });
   });
 
+  grid.addEventListener("scroll", updateScrollProgressFromGrid);
+
+  scrollProgress.addEventListener("pointerdown", () => {
+    isDraggingProgress = true;
+  });
+  scrollProgress.addEventListener("pointerup", () => {
+    isDraggingProgress = false;
+    updateScrollProgressFromGrid();
+  });
+  scrollProgress.addEventListener("input", () => {
+    const maxScroll = Math.max(0, grid.scrollHeight - grid.clientHeight);
+    if (maxScroll <= 0) return;
+    const ratio = Number(scrollProgress.value || 0) / 100;
+    grid.scrollTop = maxScroll * ratio;
+  });
+
+  const resizeObserver = new ResizeObserver(() => {
+    updateResponsiveColumns();
+    updateScrollProgressFromGrid();
+  });
+  resizeObserver.observe(wrap);
+
   refreshStatus();
   node.__saaTimer = setInterval(refreshStatus, 1400);
 
   const oldRemoved = node.onRemoved;
   node.onRemoved = function () {
     if (node.__saaTimer) clearInterval(node.__saaTimer);
+    resizeObserver.disconnect();
     if (oldRemoved) oldRemoved.apply(this, arguments);
   };
 }
