@@ -29,14 +29,27 @@ function setSelected(node, item) {
   node.setDirtyCanvas(true, true);
 }
 
-function normalizeGroupValue(value) {
+function resolveGroupFromWidget(widget) {
+  const value = widget?.value;
   if (typeof value === "string") return value;
-  if (value == null) return "All";
-  try {
-    return String(value);
-  } catch {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const values = widget?.options?.values;
+    if (Array.isArray(values) && values[value] != null) return String(values[value]);
     return "All";
   }
+  if (Array.isArray(value) && value.length > 0) {
+    const tail = value[value.length - 1];
+    if (typeof tail === "string") return tail;
+    if (typeof tail === "number") {
+      const values = widget?.options?.values;
+      if (Array.isArray(values) && values[tail] != null) return String(values[tail]);
+    }
+  }
+  if (value && typeof value === "object") {
+    if (typeof value.content === "string") return value.content;
+    if (typeof value.value === "string") return value.value;
+  }
+  return "All";
 }
 
 function renderCards(node, container, items) {
@@ -95,7 +108,7 @@ function ensureStyle() {
     .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
     .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
     .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-progress { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; }
+    .saa-scroll-progress { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -251,9 +264,8 @@ function attachUI(node) {
 
     const sourceWidget = byName(node, "source_group");
     if (sourceWidget) {
-      const current = sourceWidget.value || "All";
-      sourceWidget.value = node.__saaGroupNames.includes(current) ? current : "All";
-      group.value = sourceWidget.value;
+      const current = resolveGroupFromWidget(sourceWidget);
+      group.value = node.__saaGroupNames.includes(current) ? current : "All";
     }
   }
 
@@ -270,7 +282,7 @@ function attachUI(node) {
   async function syncFromSourceWidget(force = false) {
     const sourceWidget = byName(node, "source_group");
     if (!sourceWidget) return;
-    const widgetGroup = normalizeGroupValue(sourceWidget.value || "All");
+    const widgetGroup = resolveGroupFromWidget(sourceWidget);
     const allowed = node.__saaGroupNames || [];
     const nextGroup = allowed.includes(widgetGroup) ? widgetGroup : "All";
     if (group.value !== nextGroup) {
