@@ -110,9 +110,14 @@ function ensureStyle() {
     .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
     .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
     .saa-scroll-wrap { position:relative; width:18px; min-height:320px; display:flex; align-items:stretch; justify-content:center; }
-    .saa-scroll-rail { position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); width:8px; background:#ffffff; border-radius:999px; }
+    .saa-scroll-rail { position:absolute; z-index:1; top:0; bottom:0; left:50%; transform:translateX(-50%); width:8px; background:#ffffff; border-radius:999px; overflow:hidden; }
     .saa-scroll-fill { position:absolute; top:0; left:0; right:0; height:0%; background:#1e90ff; border-radius:999px; }
-    .saa-scroll-progress { position:relative; z-index:2; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); background:transparent; }
+    .saa-scroll-progress { position:relative; z-index:2; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); background:transparent; accent-color: transparent; }
+    .saa-scroll-progress::-webkit-slider-runnable-track { background: transparent; border: none; }
+    .saa-scroll-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #1e90ff; border: 2px solid #ffffff; margin-top: -1px; }
+    .saa-scroll-progress::-moz-range-track { background: transparent; border: none; }
+    .saa-scroll-progress::-moz-range-progress { background: transparent; }
+    .saa-scroll-progress::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #1e90ff; border: 2px solid #ffffff; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
