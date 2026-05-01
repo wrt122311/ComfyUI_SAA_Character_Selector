@@ -230,7 +230,7 @@ function attachUI(node) {
     }
     scrollProgress.disabled = false;
     if (isDraggingProgress) return;
-    const ratio = (grid.scrollTop / maxScroll) * 100;
+    const ratio = 100 - (grid.scrollTop / maxScroll) * 100;
     scrollProgress.value = String(Math.max(0, Math.min(100, ratio)));
   }
 
@@ -443,7 +443,7 @@ function attachUI(node) {
   scrollProgress.addEventListener("input", () => {
     const maxScroll = Math.max(0, grid.scrollHeight - grid.clientHeight);
     if (maxScroll <= 0) return;
-    const ratio = Number(scrollProgress.value || 0) / 100;
+    const ratio = 1 - Number(scrollProgress.value || 0) / 100;
     grid.scrollTop = maxScroll * ratio;
   });
 
