@@ -160,6 +160,8 @@ function attachUI(node) {
 
   let searchTimer = null;
   let isDraggingProgress = false;
+  let lastIsLoading = null;
+  let hasHydratedAfterReady = false;
 
   function updateResponsiveColumns() {
     const width = Math.max(320, wrap.clientWidth || 320);
@@ -236,15 +238,22 @@ function attachUI(node) {
       pLabel.textContent = `${Math.round(Number(s.progress || 0))}%`;
       const isLoading = Boolean(s.is_loading);
       progressRow.style.display = isLoading ? "flex" : "none";
+      const becameReady = lastIsLoading === true && isLoading === false;
+      lastIsLoading = isLoading;
       if (s.error) {
         status.textContent = `Error: ${s.error}`;
         progressRow.style.display = "flex";
+        hasHydratedAfterReady = false;
       } else {
-        status.textContent = s.status || "idle";
+        if (isLoading) {
+          status.textContent = s.status || "loading";
+          hasHydratedAfterReady = false;
+        }
       }
-      if (!s.is_loading && (s.progress || 0) >= 100) {
+      if (!s.is_loading && (s.progress || 0) >= 100 && (!hasHydratedAfterReady || becameReady)) {
         await loadGroups();
         await loadCharacters();
+        hasHydratedAfterReady = true;
       }
     } catch (err) {
       status.textContent = `Status failed: ${String(err)}`;
@@ -256,6 +265,8 @@ function attachUI(node) {
     progressRow.style.display = "flex";
     progress.value = 0;
     pLabel.textContent = "0%";
+    hasHydratedAfterReady = false;
+    lastIsLoading = true;
     await apiPost("/saa_selector/reload");
     refreshStatus();
   });
