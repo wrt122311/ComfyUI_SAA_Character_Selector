@@ -109,7 +109,10 @@ function ensureStyle() {
     .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
     .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
     .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-progress { writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); }
+    .saa-scroll-wrap { position:relative; width:18px; min-height:320px; display:flex; align-items:stretch; justify-content:center; }
+    .saa-scroll-rail { position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); width:8px; background:#ffffff; border-radius:999px; }
+    .saa-scroll-fill { position:absolute; top:0; left:0; right:0; height:0%; background:#1e90ff; border-radius:999px; }
+    .saa-scroll-progress { position:relative; z-index:2; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); background:transparent; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -181,6 +184,14 @@ function attachUI(node) {
   status.className = "saa-status";
   status.textContent = "Preparing...";
 
+  const scrollWrap = document.createElement("div");
+  scrollWrap.className = "saa-scroll-wrap";
+  const scrollRail = document.createElement("div");
+  scrollRail.className = "saa-scroll-rail";
+  const scrollFill = document.createElement("div");
+  scrollFill.className = "saa-scroll-fill";
+  scrollRail.appendChild(scrollFill);
+
   const scrollProgress = document.createElement("input");
   scrollProgress.type = "range";
   scrollProgress.className = "saa-scroll-progress";
@@ -188,13 +199,15 @@ function attachUI(node) {
   scrollProgress.max = "100";
   scrollProgress.value = "0";
   scrollProgress.orient = "vertical";
+  scrollWrap.appendChild(scrollRail);
+  scrollWrap.appendChild(scrollProgress);
 
   const grid = document.createElement("div");
   grid.className = "saa-grid";
   const gridRow = document.createElement("div");
   gridRow.className = "saa-grid-row";
   gridRow.appendChild(grid);
-  gridRow.appendChild(scrollProgress);
+  gridRow.appendChild(scrollWrap);
 
   wrap.appendChild(top);
   wrap.appendChild(progressRow);
@@ -226,12 +239,15 @@ function attachUI(node) {
     if (maxScroll <= 0) {
       scrollProgress.value = "0";
       scrollProgress.disabled = true;
+      scrollFill.style.height = "0%";
       return;
     }
     scrollProgress.disabled = false;
     if (isDraggingProgress) return;
     const ratio = 100 - (grid.scrollTop / maxScroll) * 100;
     scrollProgress.value = String(Math.max(0, Math.min(100, ratio)));
+    const fillRatio = 100 - Number(scrollProgress.value || 0);
+    scrollFill.style.height = `${Math.max(0, Math.min(100, fillRatio))}%`;
   }
 
   function renderGroupOptions(allGroups, filterText = "") {
@@ -445,6 +461,8 @@ function attachUI(node) {
     if (maxScroll <= 0) return;
     const ratio = 1 - Number(scrollProgress.value || 0) / 100;
     grid.scrollTop = maxScroll * ratio;
+    const fillRatio = 100 - Number(scrollProgress.value || 0);
+    scrollFill.style.height = `${Math.max(0, Math.min(100, fillRatio))}%`;
   });
 
   const resizeObserver = new ResizeObserver(() => {
