@@ -30,7 +30,7 @@ Then restart ComfyUI.
 - Inputs:
   - `selected_character_id`: selected item id from UI image cards
   - `source_group`: source/origin grouping dropdown
-  - `auto_refresh_data`: force refresh remote data
+  - `auto_refresh_data`: kept for workflow compatibility; data refresh is controlled by the in-node `Reload` button
 
 ## Data Sources
 
@@ -39,6 +39,9 @@ Then restart ComfyUI.
 - Character thumbs:
   - `https://huggingface.co/datasets/flagrantia/character_select_stand_alone_app/resolve/main/wai_character_thumbs_v160.json?download=true`
 
-Downloaded files are cached under:
+Downloaded files are stored directly in the custom node folder:
 
-`ComfyUI_SAA_Character_Selector/cache`
+- `ComfyUI_SAA_Character_Selector/wai_characters.csv`
+- `ComfyUI_SAA_Character_Selector/wai_character_thumbs_v160.json`
+
+The files are downloaded only when missing. Click `Reload` in the node UI to force a fresh download from the upstream sources.

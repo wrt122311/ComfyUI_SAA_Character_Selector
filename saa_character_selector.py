@@ -48,10 +48,10 @@ def _extract_origin(zh_name: str, en_name: str) -> str:
 class _SAADataStore:
     def __init__(self):
         self.root = Path(__file__).resolve().parent
-        self.cache_dir = self.root / "cache"
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.characters_file = self.cache_dir / "wai_characters.csv"
-        self.thumbs_file = self.cache_dir / "wai_character_thumbs_v160.json"
+        self.legacy_cache_dir = self.root / "cache"
+        self.characters_file = self.root / "wai_characters.csv"
+        self.thumbs_file = self.root / "wai_character_thumbs_v160.json"
+        self._migrate_legacy_cache()
 
         self._lock = threading.Lock()
         self._is_loading = False
@@ -66,6 +66,21 @@ class _SAADataStore:
         self._groups = []
         self._group_counts = {}
         self._thumbs_map = {}
+
+    def _migrate_legacy_cache(self):
+        legacy_files = [
+            (self.legacy_cache_dir / "wai_characters.csv", self.characters_file),
+            (self.legacy_cache_dir / "wai_character_thumbs_v160.json", self.thumbs_file),
+        ]
+        for src, dst in legacy_files:
+            if dst.exists() or not src.exists():
+                continue
+            try:
+                src.replace(dst)
+            except OSError:
+                # If moving fails because files are on different volumes or locked,
+                # leave the normal downloader to fill the root-level file once.
+                pass
 
     def status(self):
         with self._lock:
@@ -389,10 +404,7 @@ class SAACharacterSelector:
     OUTPUT_NODE = False
 
     def run(self, selected_character_id="", source_group="All", auto_refresh_data=False):
-        if auto_refresh_data:
-            STORE.ensure_loaded(force=True)
-        else:
-            STORE.ensure_loaded(force=False)
+        STORE.ensure_loaded(force=False)
         data = STORE.get_character_output(selected_character_id)
         return (data["name_zh"], data["name_en"], data["origin"], data["prompt"], data["json"])
 
