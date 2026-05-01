@@ -187,6 +187,7 @@ function attachUI(node) {
   let isDraggingProgress = false;
   let lastIsLoading = null;
   let hasHydratedAfterReady = false;
+  let lastSyncedGroupValue = "";
 
   function updateResponsiveColumns() {
     const width = Math.max(320, wrap.clientWidth || 320);
@@ -280,6 +281,19 @@ function attachUI(node) {
         await loadCharacters();
         hasHydratedAfterReady = true;
       }
+
+      // Sync from the built-in ComfyUI source_group widget to custom UI.
+      const sourceWidget = byName(node, "source_group");
+      if (sourceWidget) {
+        const widgetGroup = sourceWidget.value || "All";
+        if (widgetGroup !== group.value && (node.__saaGroupNames || []).includes(widgetGroup)) {
+          group.value = widgetGroup;
+        }
+        if (widgetGroup !== lastSyncedGroupValue) {
+          lastSyncedGroupValue = widgetGroup;
+          await loadCharacters();
+        }
+      }
     } catch (err) {
       status.textContent = `Status failed: ${String(err)}`;
     }
@@ -338,6 +352,7 @@ function attachUI(node) {
     loadCharacters().catch((err) => {
       status.textContent = `Filter failed: ${String(err)}`;
     });
+    lastSyncedGroupValue = group.value || "All";
   });
 
   grid.addEventListener("scroll", updateScrollProgressFromGrid);
