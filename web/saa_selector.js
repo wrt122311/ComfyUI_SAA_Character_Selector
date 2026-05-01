@@ -258,6 +258,22 @@ function attachUI(node) {
     }
   }
 
+  function syncSourceWidgetOptions(sourceWidget) {
+    if (!sourceWidget || !Array.isArray(node.__saaGroupNames) || node.__saaGroupNames.length === 0) {
+      return;
+    }
+
+    const current = resolveGroupFromWidget(sourceWidget);
+    if (!sourceWidget.options || typeof sourceWidget.options !== "object") {
+      sourceWidget.options = {};
+    }
+    sourceWidget.options.values = [...node.__saaGroupNames];
+
+    const next = node.__saaGroupNames.includes(current) ? current : "All";
+    const idx = sourceWidget.options.values.indexOf(next);
+    sourceWidget.value = idx >= 0 ? next : "All";
+  }
+
   async function loadGroups() {
     const data = await apiGet("/saa_selector/groups");
     const allGroups = data.groups || [];
@@ -266,6 +282,7 @@ function attachUI(node) {
 
     const sourceWidget = byName(node, "source_group");
     if (sourceWidget) {
+      syncSourceWidgetOptions(sourceWidget);
       const current = resolveGroupFromWidget(sourceWidget);
       group.value = node.__saaGroupNames.includes(current) ? current : "All";
     }
@@ -374,11 +391,12 @@ function attachUI(node) {
     if (sourceWidget) {
       const allowed = Array.isArray(node.__saaGroupNames) ? node.__saaGroupNames : ["All"];
       const picked = allowed.includes(group.value) ? group.value : "All";
+      syncSourceWidgetOptions(sourceWidget);
       const values = sourceWidget.options?.values;
       suppressWidgetCallback = true;
       if (Array.isArray(values)) {
         const idx = values.indexOf(picked);
-        sourceWidget.value = idx >= 0 ? idx : picked;
+        sourceWidget.value = idx >= 0 ? picked : "All";
       } else {
         sourceWidget.value = picked;
       }
