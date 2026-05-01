@@ -29,8 +29,8 @@ function setSelected(node, item) {
   node.setDirtyCanvas(true, true);
 }
 
-function resolveGroupFromWidget(widget) {
-  const value = widget?.value;
+function resolveGroupFromWidget(widget, rawValue = undefined) {
+  const value = rawValue === undefined ? widget?.value : rawValue;
   if (typeof value === "string") return value;
   if (typeof value === "number" && Number.isFinite(value)) {
     const values = widget?.options?.values;
@@ -49,7 +49,8 @@ function resolveGroupFromWidget(widget) {
     if (typeof value.content === "string") return value.content;
     if (typeof value.value === "string") return value.value;
   }
-  return "All";
+  if (value == null) return "All";
+  return String(value);
 }
 
 function renderCards(node, container, items) {
@@ -108,7 +109,7 @@ function ensureStyle() {
     .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
     .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
     .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-progress { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); }
+    .saa-scroll-progress { writing-mode: vertical-lr; direction: rtl; -webkit-appearance: slider-vertical; width:18px; min-height:320px; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -211,6 +212,7 @@ function attachUI(node) {
   let lastIsLoading = null;
   let hasHydratedAfterReady = false;
   let lastSyncedGroupValue = "";
+  let suppressWidgetCallback = false;
 
   function updateResponsiveColumns() {
     const width = Math.max(320, wrap.clientWidth || 320);
@@ -371,7 +373,16 @@ function attachUI(node) {
     const sourceWidget = byName(node, "source_group");
     if (sourceWidget) {
       const allowed = Array.isArray(node.__saaGroupNames) ? node.__saaGroupNames : ["All"];
-      sourceWidget.value = allowed.includes(group.value) ? group.value : "All";
+      const picked = allowed.includes(group.value) ? group.value : "All";
+      const values = sourceWidget.options?.values;
+      suppressWidgetCallback = true;
+      if (Array.isArray(values)) {
+        const idx = values.indexOf(picked);
+        sourceWidget.value = idx >= 0 ? idx : picked;
+      } else {
+        sourceWidget.value = picked;
+      }
+      suppressWidgetCallback = false;
       node.setDirtyCanvas(true, true);
     }
     loadCharacters().catch((err) => {
@@ -388,6 +399,13 @@ function attachUI(node) {
     sourceWidget.callback = function (value) {
       if (typeof oldCb === "function") {
         oldCb.apply(this, arguments);
+      }
+      if (suppressWidgetCallback) return;
+      const mapped = resolveGroupFromWidget(sourceWidget, value);
+      const allowed = node.__saaGroupNames || [];
+      const nextGroup = allowed.includes(mapped) ? mapped : "All";
+      if (group.value !== nextGroup) {
+        group.value = nextGroup;
       }
       syncFromSourceWidget(true).catch((err) => {
         status.textContent = `Sync failed: ${String(err)}`;
