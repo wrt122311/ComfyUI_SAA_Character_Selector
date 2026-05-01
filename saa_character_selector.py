@@ -24,6 +24,10 @@ def _sanitize_for_md5(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", r"\(").replace(")", r"\)")
 
 
+def _escape_parens(text: str) -> str:
+    return (text or "").replace("(", r"\(").replace(")", r"\)")
+
+
 def _extract_origin(zh_name: str, en_name: str) -> str:
     candidates = []
     m_en = re.findall(r"\(([^()]*)\)", en_name or "")
@@ -252,18 +256,19 @@ class _SAADataStore:
                 "json": json.dumps({"error": "no character selected"}, ensure_ascii=False),
             }
         # The second column in wai_characters.csv is the generation prompt/tag.
-        prompt = item["name_en"]
+        prompt = _escape_parens(item["name_en"])
+        name_en_escaped = _escape_parens(item["name_en"])
         payload = {
             "id": item["id"],
             "name_zh": item["name_zh"],
-            "name_en": item["name_en"],
+            "name_en": name_en_escaped,
             "origin": item["origin"],
             "prompt": prompt,
             "thumb_url": f"/saa_selector/thumb/{item['id']}",
         }
         return {
             "name_zh": item["name_zh"],
-            "name_en": item["name_en"],
+            "name_en": name_en_escaped,
             "origin": item["origin"],
             "prompt": prompt,
             "json": json.dumps(payload, ensure_ascii=False),
