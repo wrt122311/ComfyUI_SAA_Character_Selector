@@ -80,8 +80,12 @@ function ensureStyle() {
     .saa-top input, .saa-top select, .saa-top button { font-size:12px; padding:4px 6px; }
     .saa-progress-row { display:flex; align-items:center; gap:8px; }
     .saa-progress { width:100%; height:10px; }
-    .saa-grid { display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-progress { width:100%; }
+    .saa-input-wrap { display:flex; gap:4px; align-items:center; min-width:0; }
+    .saa-input-wrap input { flex:1; min-width:0; }
+    .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
+    .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
+    .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
+    .saa-scroll-progress { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -103,21 +107,38 @@ function attachUI(node) {
   const top = document.createElement("div");
   top.className = "saa-top";
 
+  const searchWrap = document.createElement("div");
+  searchWrap.className = "saa-input-wrap";
+
   const search = document.createElement("input");
   search.type = "text";
   search.placeholder = "Search name/origin";
+  const searchClearBtn = document.createElement("button");
+  searchClearBtn.type = "button";
+  searchClearBtn.className = "saa-clear-btn";
+  searchClearBtn.textContent = "x";
+  searchWrap.appendChild(search);
+  searchWrap.appendChild(searchClearBtn);
 
+  const groupSearchWrap = document.createElement("div");
+  groupSearchWrap.className = "saa-input-wrap";
   const groupSearch = document.createElement("input");
   groupSearch.type = "text";
   groupSearch.placeholder = "Search group";
+  const groupSearchClearBtn = document.createElement("button");
+  groupSearchClearBtn.type = "button";
+  groupSearchClearBtn.className = "saa-clear-btn";
+  groupSearchClearBtn.textContent = "x";
+  groupSearchWrap.appendChild(groupSearch);
+  groupSearchWrap.appendChild(groupSearchClearBtn);
 
   const group = document.createElement("select");
   const refreshBtn = document.createElement("button");
   refreshBtn.type = "button";
   refreshBtn.textContent = "Reload";
 
-  top.appendChild(search);
-  top.appendChild(groupSearch);
+  top.appendChild(searchWrap);
+  top.appendChild(groupSearchWrap);
   top.appendChild(group);
   top.appendChild(refreshBtn);
 
@@ -136,21 +157,25 @@ function attachUI(node) {
   status.className = "saa-status";
   status.textContent = "Preparing...";
 
-  const grid = document.createElement("div");
-  grid.className = "saa-grid";
-
   const scrollProgress = document.createElement("input");
   scrollProgress.type = "range";
   scrollProgress.className = "saa-scroll-progress";
   scrollProgress.min = "0";
   scrollProgress.max = "100";
   scrollProgress.value = "0";
+  scrollProgress.orient = "vertical";
+
+  const grid = document.createElement("div");
+  grid.className = "saa-grid";
+  const gridRow = document.createElement("div");
+  gridRow.className = "saa-grid-row";
+  gridRow.appendChild(grid);
+  gridRow.appendChild(scrollProgress);
 
   wrap.appendChild(top);
   wrap.appendChild(progressRow);
   wrap.appendChild(status);
-  wrap.appendChild(grid);
-  wrap.appendChild(scrollProgress);
+  wrap.appendChild(gridRow);
 
   node.addDOMWidget("saa_selector", "saa_selector", wrap, {
     getMinHeight: () => 390,
@@ -279,9 +304,28 @@ function attachUI(node) {
       });
     }, 250);
   });
+  searchClearBtn.addEventListener("click", () => {
+    search.value = "";
+    loadCharacters().catch((err) => {
+      status.textContent = `Search failed: ${String(err)}`;
+    });
+  });
 
   groupSearch.addEventListener("input", () => {
     renderGroupOptions(node.__saaGroupsRaw || [], groupSearch.value);
+  });
+  groupSearchClearBtn.addEventListener("click", () => {
+    groupSearch.value = "";
+    renderGroupOptions(node.__saaGroupsRaw || [], "");
+    group.value = "All";
+    const sourceWidget = byName(node, "source_group");
+    if (sourceWidget) {
+      sourceWidget.value = "All";
+      node.setDirtyCanvas(true, true);
+    }
+    loadCharacters().catch((err) => {
+      status.textContent = `Filter failed: ${String(err)}`;
+    });
   });
 
   group.addEventListener("change", () => {
