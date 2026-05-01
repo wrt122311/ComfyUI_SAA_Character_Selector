@@ -112,12 +112,8 @@ function ensureStyle() {
     .saa-scroll-wrap { position:relative; width:18px; min-height:320px; display:flex; align-items:stretch; justify-content:center; }
     .saa-scroll-rail { position:absolute; z-index:1; top:0; bottom:0; left:50%; transform:translateX(-50%); width:8px; background:#ffffff; border-radius:999px; overflow:hidden; }
     .saa-scroll-fill { position:absolute; top:0; left:0; right:0; height:0%; background:#1e90ff; border-radius:999px; }
-    .saa-scroll-progress { position:relative; z-index:2; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); background:transparent; accent-color: transparent; }
-    .saa-scroll-progress::-webkit-slider-runnable-track { background: transparent; border: none; }
-    .saa-scroll-progress::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #1e90ff; border: 2px solid #ffffff; margin-top: -1px; }
-    .saa-scroll-progress::-moz-range-track { background: transparent; border: none; }
-    .saa-scroll-progress::-moz-range-progress { background: transparent; }
-    .saa-scroll-progress::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #1e90ff; border: 2px solid #ffffff; }
+    .saa-scroll-thumb { position:absolute; z-index:2; left:50%; transform:translate(-50%, -50%); width:18px; height:18px; border-radius:50%; background:#1e90ff; border:2px solid #ffffff; pointer-events:none; }
+    .saa-scroll-progress { position:absolute; z-index:3; inset:0; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); opacity:0; cursor:pointer; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -196,6 +192,8 @@ function attachUI(node) {
   const scrollFill = document.createElement("div");
   scrollFill.className = "saa-scroll-fill";
   scrollRail.appendChild(scrollFill);
+  const scrollThumb = document.createElement("div");
+  scrollThumb.className = "saa-scroll-thumb";
 
   const scrollProgress = document.createElement("input");
   scrollProgress.type = "range";
@@ -205,6 +203,7 @@ function attachUI(node) {
   scrollProgress.value = "0";
   scrollProgress.orient = "vertical";
   scrollWrap.appendChild(scrollRail);
+  scrollWrap.appendChild(scrollThumb);
   scrollWrap.appendChild(scrollProgress);
 
   const grid = document.createElement("div");
@@ -245,6 +244,7 @@ function attachUI(node) {
       scrollProgress.value = "0";
       scrollProgress.disabled = true;
       scrollFill.style.height = "0%";
+      scrollThumb.style.top = "0%";
       return;
     }
     scrollProgress.disabled = false;
@@ -253,6 +253,7 @@ function attachUI(node) {
     scrollProgress.value = String(Math.max(0, Math.min(100, ratio)));
     const fillRatio = 100 - Number(scrollProgress.value || 0);
     scrollFill.style.height = `${Math.max(0, Math.min(100, fillRatio))}%`;
+    scrollThumb.style.top = `${Math.max(0, Math.min(100, fillRatio))}%`;
   }
 
   function renderGroupOptions(allGroups, filterText = "") {
@@ -468,6 +469,7 @@ function attachUI(node) {
     grid.scrollTop = maxScroll * ratio;
     const fillRatio = 100 - Number(scrollProgress.value || 0);
     scrollFill.style.height = `${Math.max(0, Math.min(100, fillRatio))}%`;
+    scrollThumb.style.top = `${Math.max(0, Math.min(100, fillRatio))}%`;
   });
 
   const resizeObserver = new ResizeObserver(() => {
