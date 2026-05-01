@@ -43,7 +43,8 @@ function renderCards(node, container, items) {
     img.className = "saa-thumb";
     img.alt = `${item.name_en}`;
     img.loading = "lazy";
-    img.src = item.thumb_url;
+    const safeThumbUrl = `/saa_selector/thumb/${encodeURIComponent(item.id || "")}`;
+    img.src = safeThumbUrl;
 
     const title = document.createElement("div");
     title.className = "saa-title";

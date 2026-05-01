@@ -58,6 +58,7 @@ class _SAADataStore:
 
         self._characters = []
         self._char_by_id = {}
+        self._char_by_md5 = {}
         self._groups = []
         self._group_counts = {}
         self._thumbs_map = {}
@@ -139,6 +140,7 @@ class _SAADataStore:
 
         chars = []
         by_id = {}
+        by_md5 = {}
         groups = set()
         group_counts = {}
         total = max(1, len(rows))
@@ -164,6 +166,7 @@ class _SAADataStore:
             }
             chars.append(item)
             by_id[char_id] = item
+            by_md5[md5_key] = item
             groups.add(origin)
             group_counts[origin] = group_counts.get(origin, 0) + 1
 
@@ -178,6 +181,7 @@ class _SAADataStore:
         with self._lock:
             self._characters = chars
             self._char_by_id = by_id
+            self._char_by_md5 = by_md5
             self._groups = group_list
             self._group_counts = group_counts
             self._thumbs_map = thumbs_map
@@ -219,8 +223,7 @@ class _SAADataStore:
         return result
 
     def get_character(self, char_id):
-        with self._lock:
-            item = self._char_by_id.get(char_id)
+        item = self._resolve_character(char_id)
         if not item:
             return None
         return {
@@ -232,8 +235,7 @@ class _SAADataStore:
         }
 
     def get_character_output(self, char_id):
-        with self._lock:
-            item = self._char_by_id.get(char_id)
+        item = self._resolve_character(char_id)
         if not item:
             return {
                 "name_zh": "",
@@ -261,8 +263,8 @@ class _SAADataStore:
         }
 
     def get_thumb_bytes(self, char_id):
+        item = self._resolve_character(char_id)
         with self._lock:
-            item = self._char_by_id.get(char_id)
             thumbs = self._thumbs_map
         if not item:
             return None
@@ -271,6 +273,32 @@ class _SAADataStore:
             return None
         raw = base64.b64decode(packed)
         return gzip.decompress(raw)
+
+    def _resolve_character(self, char_id):
+        with self._lock:
+            by_id = self._char_by_id
+            by_md5 = self._char_by_md5
+
+        if not char_id:
+            return None
+
+        item = by_id.get(char_id)
+        if item:
+            return item
+
+        # AIOHTTP path params may arrive decoded; support both forms.
+        encoded = urllib.parse.quote(char_id, safe="")
+        item = by_id.get(encoded)
+        if item:
+            return item
+
+        decoded = urllib.parse.unquote(char_id)
+        item = by_id.get(decoded)
+        if item:
+            return item
+
+        # Fallback to md5 key if frontend ever sends md5 id directly.
+        return by_md5.get(char_id)
 
 
 STORE = _SAADataStore()
