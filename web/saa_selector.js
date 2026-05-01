@@ -109,7 +109,7 @@ function ensureStyle() {
     .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
     .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
     .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-progress { writing-mode: vertical-lr; direction: rtl; -webkit-appearance: slider-vertical; width:18px; min-height:320px; }
+    .saa-scroll-progress { writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -230,7 +230,7 @@ function attachUI(node) {
     }
     scrollProgress.disabled = false;
     if (isDraggingProgress) return;
-    const ratio = (grid.scrollTop / maxScroll) * 100;
+    const ratio = 100 - (grid.scrollTop / maxScroll) * 100;
     scrollProgress.value = String(Math.max(0, Math.min(100, ratio)));
   }
 
@@ -443,7 +443,7 @@ function attachUI(node) {
   scrollProgress.addEventListener("input", () => {
     const maxScroll = Math.max(0, grid.scrollHeight - grid.clientHeight);
     if (maxScroll <= 0) return;
-    const ratio = Number(scrollProgress.value || 0) / 100;
+    const ratio = 1 - Number(scrollProgress.value || 0) / 100;
     grid.scrollTop = maxScroll * ratio;
   });
 
