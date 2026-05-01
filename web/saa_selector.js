@@ -145,14 +145,28 @@ function attachUI(node) {
 
   let searchTimer = null;
 
-  async function loadGroups() {
+async function loadGroups() {
     const data = await apiGet("/saa_selector/groups");
     group.innerHTML = "";
+    const sourceWidget = byName(node, "source_group");
+    if (sourceWidget) {
+      sourceWidget.options = [];
+    }
     for (const g of data.groups || []) {
+      const groupName = typeof g === "string" ? g : g.name;
+      const count = typeof g === "string" ? null : g.count;
       const opt = document.createElement("option");
-      opt.value = g;
-      opt.textContent = g;
+      opt.value = groupName;
+      opt.textContent = count === null ? groupName : `${groupName} (${count})`;
       group.appendChild(opt);
+      if (sourceWidget) {
+        sourceWidget.options.push(groupName);
+      }
+    }
+    if (sourceWidget) {
+      const current = sourceWidget.value || "All";
+      sourceWidget.value = sourceWidget.options.includes(current) ? current : "All";
+      group.value = sourceWidget.value;
     }
   }
 
@@ -199,6 +213,11 @@ function attachUI(node) {
   });
 
   group.addEventListener("change", () => {
+    const sourceWidget = byName(node, "source_group");
+    if (sourceWidget) {
+      sourceWidget.value = group.value;
+      node.setDirtyCanvas(true, true);
+    }
     loadCharacters().catch((err) => {
       status.textContent = `Filter failed: ${String(err)}`;
     });

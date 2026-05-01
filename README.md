@@ -24,7 +24,13 @@ Then restart ComfyUI.
   - `character_zh`
   - `character_en`
   - `origin`
+  - `prompt`
   - `character_json`
+
+- Inputs:
+  - `selected_character_id`: selected item id from UI image cards
+  - `source_group`: source/origin grouping dropdown
+  - `auto_refresh_data`: force refresh remote data
 
 ## Data Sources
 

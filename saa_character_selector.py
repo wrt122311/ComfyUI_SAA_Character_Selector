@@ -59,6 +59,7 @@ class _SAADataStore:
         self._characters = []
         self._char_by_id = {}
         self._groups = []
+        self._group_counts = {}
         self._thumbs_map = {}
 
     def status(self):
@@ -139,6 +140,7 @@ class _SAADataStore:
         chars = []
         by_id = {}
         groups = set()
+        group_counts = {}
         total = max(1, len(rows))
         for idx, row in enumerate(rows):
             if len(row) < 2:
@@ -163,6 +165,7 @@ class _SAADataStore:
             chars.append(item)
             by_id[char_id] = item
             groups.add(origin)
+            group_counts[origin] = group_counts.get(origin, 0) + 1
 
             if idx % 80 == 0:
                 ratio = idx / total
@@ -176,6 +179,7 @@ class _SAADataStore:
             self._characters = chars
             self._char_by_id = by_id
             self._groups = group_list
+            self._group_counts = group_counts
             self._thumbs_map = thumbs_map
 
         self._set_progress(progress_ceiling, "index ready")
@@ -183,6 +187,12 @@ class _SAADataStore:
     def list_groups(self):
         with self._lock:
             return list(self._groups)
+
+    def list_groups_with_count(self):
+        with self._lock:
+            groups = list(self._groups)
+            counts = dict(self._group_counts)
+        return [{"name": g, "count": counts.get(g, 0)} for g in groups]
 
     def list_characters(self, search="", group="All", limit=120):
         with self._lock:
@@ -229,19 +239,24 @@ class _SAADataStore:
                 "name_zh": "",
                 "name_en": "",
                 "origin": "",
+                "prompt": "",
                 "json": json.dumps({"error": "no character selected"}, ensure_ascii=False),
             }
+        # The second column in wai_characters.csv is the generation prompt/tag.
+        prompt = item["name_en"]
         payload = {
             "id": item["id"],
             "name_zh": item["name_zh"],
             "name_en": item["name_en"],
             "origin": item["origin"],
+            "prompt": prompt,
             "thumb_url": f"/saa_selector/thumb/{item['id']}",
         }
         return {
             "name_zh": item["name_zh"],
             "name_en": item["name_en"],
             "origin": item["origin"],
+            "prompt": prompt,
             "json": json.dumps(payload, ensure_ascii=False),
         }
 
@@ -275,7 +290,7 @@ async def saa_selector_reload(request):
 @PromptServer.instance.routes.get("/saa_selector/groups")
 async def saa_selector_groups(request):
     STORE.ensure_loaded(force=False)
-    return web.json_response({"groups": STORE.list_groups()})
+    return web.json_response({"groups": STORE.list_groups_with_count()})
 
 
 @PromptServer.instance.routes.get("/saa_selector/characters")
@@ -315,26 +330,31 @@ async def saa_selector_thumb(request):
 class SAACharacterSelector:
     @classmethod
     def INPUT_TYPES(cls):
+        STORE.ensure_loaded(force=False)
+        groups = STORE.list_groups()
+        if not groups:
+            groups = ["All"]
         return {
             "required": {
                 "selected_character_id": ("STRING", {"default": "", "multiline": False}),
+                "source_group": (groups, {"default": "All"}),
                 "auto_refresh_data": ("BOOLEAN", {"default": False}),
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("character_zh", "character_en", "origin", "character_json")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("character_zh", "character_en", "origin", "prompt", "character_json")
     FUNCTION = "run"
     CATEGORY = "SAA/Character"
     OUTPUT_NODE = False
 
-    def run(self, selected_character_id="", auto_refresh_data=False):
+    def run(self, selected_character_id="", source_group="All", auto_refresh_data=False):
         if auto_refresh_data:
             STORE.ensure_loaded(force=True)
         else:
             STORE.ensure_loaded(force=False)
         data = STORE.get_character_output(selected_character_id)
-        return (data["name_zh"], data["name_en"], data["origin"], data["json"])
+        return (data["name_zh"], data["name_en"], data["origin"], data["prompt"], data["json"])
 
 
 NODE_CLASS_MAPPINGS = {
