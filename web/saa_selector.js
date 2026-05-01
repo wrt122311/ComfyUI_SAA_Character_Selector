@@ -29,6 +29,16 @@ function setSelected(node, item) {
   node.setDirtyCanvas(true, true);
 }
 
+function normalizeGroupValue(value) {
+  if (typeof value === "string") return value;
+  if (value == null) return "All";
+  try {
+    return String(value);
+  } catch {
+    return "All";
+  }
+}
+
 function renderCards(node, container, items) {
   container.innerHTML = "";
   const selectedId = byName(node, "selected_character_id")?.value || "";
@@ -257,6 +267,21 @@ function attachUI(node) {
     status.textContent = `Loaded ${data.items?.length || 0} items`;
   }
 
+  async function syncFromSourceWidget(force = false) {
+    const sourceWidget = byName(node, "source_group");
+    if (!sourceWidget) return;
+    const widgetGroup = normalizeGroupValue(sourceWidget.value || "All");
+    const allowed = node.__saaGroupNames || [];
+    const nextGroup = allowed.includes(widgetGroup) ? widgetGroup : "All";
+    if (group.value !== nextGroup) {
+      group.value = nextGroup;
+    }
+    if (force || nextGroup !== lastSyncedGroupValue) {
+      lastSyncedGroupValue = nextGroup;
+      await loadCharacters();
+    }
+  }
+
   async function refreshStatus() {
     try {
       const s = await apiGet("/saa_selector/status");
@@ -281,19 +306,7 @@ function attachUI(node) {
         await loadCharacters();
         hasHydratedAfterReady = true;
       }
-
-      // Sync from the built-in ComfyUI source_group widget to custom UI.
-      const sourceWidget = byName(node, "source_group");
-      if (sourceWidget) {
-        const widgetGroup = sourceWidget.value || "All";
-        if (widgetGroup !== group.value && (node.__saaGroupNames || []).includes(widgetGroup)) {
-          group.value = widgetGroup;
-        }
-        if (widgetGroup !== lastSyncedGroupValue) {
-          lastSyncedGroupValue = widgetGroup;
-          await loadCharacters();
-        }
-      }
+      await syncFromSourceWidget(false);
     } catch (err) {
       status.textContent = `Status failed: ${String(err)}`;
     }
@@ -354,6 +367,21 @@ function attachUI(node) {
     });
     lastSyncedGroupValue = group.value || "All";
   });
+
+  // Immediate sync when user changes the built-in source_group widget (left/right arrows).
+  const sourceWidget = byName(node, "source_group");
+  if (sourceWidget && !sourceWidget.__saaHooked) {
+    sourceWidget.__saaHooked = true;
+    const oldCb = sourceWidget.callback;
+    sourceWidget.callback = function (value) {
+      if (typeof oldCb === "function") {
+        oldCb.apply(this, arguments);
+      }
+      syncFromSourceWidget(true).catch((err) => {
+        status.textContent = `Sync failed: ${String(err)}`;
+      });
+    };
+  }
 
   grid.addEventListener("scroll", updateScrollProgressFromGrid);
 
