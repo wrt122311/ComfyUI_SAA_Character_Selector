@@ -106,12 +106,17 @@ function attachUI(node) {
   search.type = "text";
   search.placeholder = "Search name/origin";
 
+  const groupSearch = document.createElement("input");
+  groupSearch.type = "text";
+  groupSearch.placeholder = "Search group";
+
   const group = document.createElement("select");
   const refreshBtn = document.createElement("button");
   refreshBtn.type = "button";
   refreshBtn.textContent = "Reload";
 
   top.appendChild(search);
+  top.appendChild(groupSearch);
   top.appendChild(group);
   top.appendChild(refreshBtn);
 
@@ -146,24 +151,40 @@ function attachUI(node) {
 
   let searchTimer = null;
 
-  async function loadGroups() {
-    const data = await apiGet("/saa_selector/groups");
+  function renderGroupOptions(allGroups, filterText = "") {
+    const current = group.value || "All";
     group.innerHTML = "";
-    const sourceWidget = byName(node, "source_group");
-    const groupNames = [];
-    for (const g of data.groups || []) {
+    const q = (filterText || "").trim().toLowerCase();
+    const filtered = (allGroups || []).filter((g) => {
+      const name = typeof g === "string" ? g : g.name;
+      if (!q) return true;
+      return name.toLowerCase().includes(q);
+    });
+    const list = filtered.length > 0 ? filtered : allGroups;
+    for (const g of list || []) {
       const groupName = typeof g === "string" ? g : g.name;
       const count = typeof g === "string" ? null : g.count;
-      groupNames.push(groupName);
       const opt = document.createElement("option");
       opt.value = groupName;
       opt.textContent = count === null ? groupName : `${groupName} (${count})`;
       group.appendChild(opt);
     }
-    node.__saaGroupNames = groupNames;
+    node.__saaGroupNames = (allGroups || []).map((g) => (typeof g === "string" ? g : g.name));
+    if (node.__saaGroupNames.includes(current)) {
+      group.value = current;
+    }
+  }
+
+  async function loadGroups() {
+    const data = await apiGet("/saa_selector/groups");
+    const allGroups = data.groups || [];
+    node.__saaGroupsRaw = allGroups;
+    renderGroupOptions(allGroups, groupSearch.value);
+
+    const sourceWidget = byName(node, "source_group");
     if (sourceWidget) {
       const current = sourceWidget.value || "All";
-      sourceWidget.value = groupNames.includes(current) ? current : "All";
+      sourceWidget.value = node.__saaGroupNames.includes(current) ? current : "All";
       group.value = sourceWidget.value;
     }
   }
@@ -208,6 +229,10 @@ function attachUI(node) {
         status.textContent = `Search failed: ${String(err)}`;
       });
     }, 250);
+  });
+
+  groupSearch.addEventListener("input", () => {
+    renderGroupOptions(node.__saaGroupsRaw || [], groupSearch.value);
   });
 
   group.addEventListener("change", () => {
