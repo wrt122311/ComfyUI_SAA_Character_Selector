@@ -146,27 +146,24 @@ function attachUI(node) {
 
   let searchTimer = null;
 
-async function loadGroups() {
+  async function loadGroups() {
     const data = await apiGet("/saa_selector/groups");
     group.innerHTML = "";
     const sourceWidget = byName(node, "source_group");
-    if (sourceWidget) {
-      sourceWidget.options = [];
-    }
+    const groupNames = [];
     for (const g of data.groups || []) {
       const groupName = typeof g === "string" ? g : g.name;
       const count = typeof g === "string" ? null : g.count;
+      groupNames.push(groupName);
       const opt = document.createElement("option");
       opt.value = groupName;
       opt.textContent = count === null ? groupName : `${groupName} (${count})`;
       group.appendChild(opt);
-      if (sourceWidget) {
-        sourceWidget.options.push(groupName);
-      }
     }
+    node.__saaGroupNames = groupNames;
     if (sourceWidget) {
       const current = sourceWidget.value || "All";
-      sourceWidget.value = sourceWidget.options.includes(current) ? current : "All";
+      sourceWidget.value = groupNames.includes(current) ? current : "All";
       group.value = sourceWidget.value;
     }
   }
@@ -216,7 +213,8 @@ async function loadGroups() {
   group.addEventListener("change", () => {
     const sourceWidget = byName(node, "source_group");
     if (sourceWidget) {
-      sourceWidget.value = group.value;
+      const allowed = Array.isArray(node.__saaGroupNames) ? node.__saaGroupNames : ["All"];
+      sourceWidget.value = allowed.includes(group.value) ? group.value : "All";
       node.setDirtyCanvas(true, true);
     }
     loadCharacters().catch((err) => {

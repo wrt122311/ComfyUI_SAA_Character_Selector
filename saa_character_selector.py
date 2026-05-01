@@ -196,7 +196,14 @@ class _SAADataStore:
         with self._lock:
             groups = list(self._groups)
             counts = dict(self._group_counts)
-        return [{"name": g, "count": counts.get(g, 0)} for g in groups]
+            total = len(self._characters)
+        result = []
+        for g in groups:
+            if g == "All":
+                result.append({"name": g, "count": total})
+            else:
+                result.append({"name": g, "count": counts.get(g, 0)})
+        return result
 
     def list_characters(self, search="", group="All", limit=120):
         with self._lock:
