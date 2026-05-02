@@ -66,6 +66,35 @@ class _SAADataStore:
         self._groups = []
         self._group_counts = {}
         self._thumbs_map = {}
+        self.favorites_file = self.root / "favorites.json"
+        self._favorites = set()
+        self._load_favorites()
+
+    def _load_favorites(self):
+        if self.favorites_file.exists():
+            try:
+                with open(self.favorites_file, "r", encoding="utf-8") as f:
+                    self._favorites = set(json.load(f))
+            except Exception:
+                self._favorites = set()
+
+    def _save_favorites(self):
+        try:
+            with open(self.favorites_file, "w", encoding="utf-8") as f:
+                json.dump(list(self._favorites), f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def toggle_favorite(self, char_id):
+        with self._lock:
+            if char_id in self._favorites:
+                self._favorites.remove(char_id)
+                res = False
+            else:
+                self._favorites.add(char_id)
+                res = True
+            self._save_favorites()
+            return res
 
     def _migrate_legacy_cache(self):
         legacy_files = [
@@ -224,12 +253,15 @@ class _SAADataStore:
                 result.append({"name": g, "count": counts.get(g, 0)})
         return result
 
-    def list_characters(self, search="", group="All", limit=120):
+    def list_characters(self, search="", group="All", limit=120, favorites_only=False):
         with self._lock:
             chars = self._characters
+            favs = self._favorites
         q = (search or "").strip().lower()
         result = []
         for item in chars:
+            if favorites_only and item["id"] not in favs:
+                continue
             if group and group != "All" and item["origin"] != group:
                 continue
             if q:
@@ -242,6 +274,7 @@ class _SAADataStore:
                     "name_en": item["name_en"],
                     "origin": item["origin"],
                     "thumb_url": f"/saa_selector/thumb/{item['id']}",
+                    "is_favorite": item["id"] in favs,
                 }
             )
             if len(result) >= limit:
@@ -353,13 +386,22 @@ async def saa_selector_characters(request):
     STORE.ensure_loaded(force=False)
     search = request.query.get("search", "")
     group = request.query.get("group", "All")
+    fav_only = request.query.get("favorites_only", "false").lower() == "true"
     try:
         limit = int(request.query.get("limit", "120"))
     except ValueError:
         limit = 120
     limit = max(1, min(600, limit))
-    items = STORE.list_characters(search=search, group=group, limit=limit)
+    items = STORE.list_characters(search=search, group=group, limit=limit, favorites_only=fav_only)
     return web.json_response({"items": items})
+
+@PromptServer.instance.routes.post("/saa_selector/favorite/{char_id}")
+async def saa_selector_toggle_favorite(request):
+    STORE.ensure_loaded(force=False)
+    char_id = request.match_info.get("char_id", "")
+    char_id = urllib.parse.unquote(char_id)
+    is_fav = STORE.toggle_favorite(char_id)
+    return web.json_response({"id": char_id, "is_favorite": is_fav})
 
 
 @PromptServer.instance.routes.get("/saa_selector/character/{char_id}")

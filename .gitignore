@@ -3,3 +3,4 @@ __pycache__/
 cache/
 wai_characters.csv
 wai_character_thumbs_v160.json
+favorites.json

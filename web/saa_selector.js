@@ -63,11 +63,35 @@ function renderCards(node, container, items) {
     card.className = "saa-card";
     if (selectedId === item.id) card.classList.add("active");
 
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "saa-img-wrap";
+
     const img = document.createElement("img");
     img.className = "saa-thumb";
     img.alt = `${item.name_en}`;
     const safeThumbUrl = `/saa_selector/thumb/${encodeURIComponent(item.id || "")}`;
     img.src = safeThumbUrl;
+
+    const favBtn = document.createElement("div");
+    favBtn.className = "saa-fav-btn";
+    favBtn.textContent = item.is_favorite ? "★" : "☆";
+    favBtn.title = "Toggle Favorite";
+    favBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        const res = await apiPost(`/saa_selector/favorite/${encodeURIComponent(item.id)}`);
+        item.is_favorite = res.is_favorite;
+        favBtn.textContent = item.is_favorite ? "★" : "☆";
+        if (node.__saaFavoritesOnly && !item.is_favorite) {
+          card.remove();
+        }
+      } catch(err) {
+        console.error("Failed to toggle favorite", err);
+      }
+    });
+
+    imgWrap.appendChild(img);
+    imgWrap.appendChild(favBtn);
 
     const title = document.createElement("div");
     title.className = "saa-title";
@@ -77,7 +101,7 @@ function renderCards(node, container, items) {
     sub.className = "saa-sub";
     sub.textContent = `${item.name_en} | ${item.origin}`;
 
-    card.appendChild(img);
+    card.appendChild(imgWrap);
     card.appendChild(title);
     card.appendChild(sub);
 
@@ -115,7 +139,10 @@ function ensureStyle() {
     .saa-scroll-progress { position:absolute; z-index:3; inset:0; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; height:100%; transform: rotate(180deg); opacity:0; cursor:pointer; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
-    .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
+    .saa-img-wrap { position:relative; width:100%; aspect-ratio:2/3; }
+    .saa-thumb { width:100%; height:100%; object-fit:cover; background:#111; border-radius:4px; display:block; }
+    .saa-fav-btn { position:absolute; top:4px; right:4px; font-size:18px; color:#ffb700; cursor:pointer; text-shadow: 0px 0px 3px rgba(0,0,0,0.8); z-index:10; user-select:none; line-height:1; transition: transform 0.1s; }
+    .saa-fav-btn:hover { transform:scale(1.2); }
     .saa-title { font-size:12px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .saa-sub { font-size:10px; color:#b8b8b8; line-height:1.2; max-height:2.4em; overflow:hidden; }
     .saa-status { font-size:11px; color:#cfcfcf; min-height:1.2em; }
@@ -160,6 +187,24 @@ function attachUI(node) {
   groupSearchWrap.appendChild(groupSearchClearBtn);
 
   const group = document.createElement("select");
+  const favToggleBtn = document.createElement("button");
+  favToggleBtn.type = "button";
+  favToggleBtn.textContent = "☆ Fav";
+  favToggleBtn.style.color = "#ccc";
+  favToggleBtn.addEventListener("click", () => {
+    node.__saaFavoritesOnly = !node.__saaFavoritesOnly;
+    if (node.__saaFavoritesOnly) {
+      favToggleBtn.textContent = "★ Fav";
+      favToggleBtn.style.color = "#ffb700";
+    } else {
+      favToggleBtn.textContent = "☆ Fav";
+      favToggleBtn.style.color = "#ccc";
+    }
+    loadCharacters().catch((err) => {
+      status.textContent = `Filter failed: ${String(err)}`;
+    });
+  });
+
   const refreshBtn = document.createElement("button");
   refreshBtn.type = "button";
   refreshBtn.textContent = "Reload";
@@ -167,6 +212,7 @@ function attachUI(node) {
   top.appendChild(searchWrap);
   top.appendChild(groupSearchWrap);
   top.appendChild(group);
+  top.appendChild(favToggleBtn);
   top.appendChild(refreshBtn);
 
   const progressRow = document.createElement("div");
@@ -312,7 +358,8 @@ function attachUI(node) {
   async function loadCharacters() {
     const q = encodeURIComponent(search.value || "");
     const g = encodeURIComponent(group.value || "All");
-    const data = await apiGet(`/saa_selector/characters?search=${q}&group=${g}&limit=200`);
+    const favOnly = node.__saaFavoritesOnly ? "true" : "false";
+    const data = await apiGet(`/saa_selector/characters?search=${q}&group=${g}&limit=200&favorites_only=${favOnly}`);
     renderCards(node, grid, data.items || []);
     updateResponsiveColumns();
     updateScrollProgressFromGrid();
