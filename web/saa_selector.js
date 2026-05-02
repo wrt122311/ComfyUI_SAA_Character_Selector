@@ -74,14 +74,19 @@ function renderCards(node, container, items) {
 
     const favBtn = document.createElement("div");
     favBtn.className = "saa-fav-btn";
-    favBtn.textContent = item.is_favorite ? "★" : "☆";
+    if (item.is_favorite) favBtn.classList.add("active");
+    favBtn.textContent = "★";
     favBtn.title = "Toggle Favorite";
     favBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
       try {
         const res = await apiPost(`/saa_selector/favorite/${encodeURIComponent(item.id)}`);
         item.is_favorite = res.is_favorite;
-        favBtn.textContent = item.is_favorite ? "★" : "☆";
+        if (item.is_favorite) {
+          favBtn.classList.add("active");
+        } else {
+          favBtn.classList.remove("active");
+        }
         if (node.__saaFavoritesOnly && !item.is_favorite) {
           card.remove();
         }
@@ -141,8 +146,9 @@ function ensureStyle() {
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-img-wrap { position:relative; width:100%; aspect-ratio:2/3; }
     .saa-thumb { width:100%; height:100%; object-fit:cover; background:#111; border-radius:4px; display:block; }
-    .saa-fav-btn { position:absolute; top:4px; right:4px; font-size:18px; color:#ffb700; cursor:pointer; text-shadow: 0px 0px 3px rgba(0,0,0,0.8); z-index:10; user-select:none; line-height:1; transition: transform 0.1s; }
-    .saa-fav-btn:hover { transform:scale(1.2); }
+    .saa-fav-btn { position:absolute; top:6px; right:6px; font-size:20px; color:#ccc; cursor:pointer; z-index:10; user-select:none; line-height:1; transition: transform 0.1s; background: rgba(0,0,0,0.5); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+    .saa-fav-btn:hover { transform:scale(1.15); background: rgba(0,0,0,0.7); color:#fff; }
+    .saa-fav-btn.active { color:#ffb700; }
     .saa-title { font-size:12px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .saa-sub { font-size:10px; color:#b8b8b8; line-height:1.2; max-height:2.4em; overflow:hidden; }
     .saa-status { font-size:11px; color:#cfcfcf; min-height:1.2em; }
