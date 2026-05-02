@@ -98,7 +98,7 @@ function ensureStyle() {
   const style = document.createElement("style");
   style.id = "saa-selector-style";
   style.textContent = `
-    .saa-wrap { display:flex; flex-direction:column; gap:8px; }
+    .saa-wrap { display:flex; flex-direction:column; gap:8px; height:100%; box-sizing:border-box; }
     .saa-top { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
     .saa-top input, .saa-top select, .saa-top button { font-size:12px; padding:4px 6px; }
     .saa-progress-row { display:flex; align-items:center; gap:8px; }
@@ -106,13 +106,13 @@ function ensureStyle() {
     .saa-input-wrap { display:flex; gap:4px; align-items:center; min-width:0; }
     .saa-input-wrap input { flex:1; min-width:0; }
     .saa-clear-btn { font-size:12px; padding:3px 6px; line-height:1; }
-    .saa-grid-row { display:flex; gap:8px; align-items:stretch; }
-    .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; max-height:320px; overflow:auto; padding-right:4px; }
-    .saa-scroll-wrap { position:relative; width:18px; min-height:320px; display:flex; align-items:stretch; justify-content:center; }
+    .saa-grid-row { display:flex; gap:8px; align-items:stretch; flex:1; min-height:0; }
+    .saa-grid { flex:1; display:grid; grid-template-columns:repeat(var(--saa-cols, 2), minmax(0, 1fr)); gap:6px; min-height:0; overflow:auto; padding-right:4px; }
+    .saa-scroll-wrap { position:relative; width:18px; height:100%; display:flex; align-items:stretch; justify-content:center; }
     .saa-scroll-rail { position:absolute; z-index:1; top:0; bottom:0; left:50%; transform:translateX(-50%); width:8px; background:#ffffff; border-radius:999px; overflow:hidden; }
     .saa-scroll-fill { position:absolute; top:0; left:0; right:0; height:0%; background:#1e90ff; border-radius:999px; }
     .saa-scroll-thumb { position:absolute; z-index:2; left:50%; transform:translate(-50%, -50%); width:18px; height:18px; border-radius:50%; background:#1e90ff; border:2px solid #ffffff; pointer-events:none; }
-    .saa-scroll-progress { position:absolute; z-index:3; inset:0; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; min-height:320px; transform: rotate(180deg); opacity:0; cursor:pointer; }
+    .saa-scroll-progress { position:absolute; z-index:3; inset:0; writing-mode: vertical-lr; -webkit-appearance: slider-vertical; width:18px; height:100%; transform: rotate(180deg); opacity:0; cursor:pointer; }
     .saa-card { display:flex; flex-direction:column; gap:4px; border:1px solid #555; background:#1f1f1f; color:#eee; padding:6px; text-align:left; cursor:pointer; border-radius:6px; }
     .saa-card.active { border-color:#58a6ff; box-shadow:0 0 0 1px #58a6ff inset; }
     .saa-thumb { width:100%; aspect-ratio:2/3; object-fit:cover; background:#111; border-radius:4px; }
@@ -219,7 +219,7 @@ function attachUI(node) {
 
   node.addDOMWidget("saa_selector", "saa_selector", wrap, {
     getMinHeight: () => 390,
-    getMaxHeight: () => 600,
+    getMaxHeight: () => 9999,
     getHeight: () => 430,
   });
 
