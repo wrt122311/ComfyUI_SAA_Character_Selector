@@ -66,7 +66,6 @@ function renderCards(node, container, items) {
     const img = document.createElement("img");
     img.className = "saa-thumb";
     img.alt = `${item.name_en}`;
-    img.loading = "lazy";
     const safeThumbUrl = `/saa_selector/thumb/${encodeURIComponent(item.id || "")}`;
     img.src = safeThumbUrl;
 
