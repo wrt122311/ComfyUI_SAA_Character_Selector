@@ -399,9 +399,12 @@ async def saa_selector_characters(request):
 async def saa_selector_toggle_favorite(request):
     STORE.ensure_loaded(force=False)
     char_id = request.match_info.get("char_id", "")
-    char_id = urllib.parse.unquote(char_id)
-    is_fav = STORE.toggle_favorite(char_id)
-    return web.json_response({"id": char_id, "is_favorite": is_fav})
+    item = STORE._resolve_character(char_id)
+    if not item:
+        return web.json_response({"error": "not found"}, status=404)
+    real_id = item["id"]
+    is_fav = STORE.toggle_favorite(real_id)
+    return web.json_response({"id": real_id, "is_favorite": is_fav})
 
 
 @PromptServer.instance.routes.get("/saa_selector/character/{char_id}")
