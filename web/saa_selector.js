@@ -234,10 +234,13 @@ function attachUI(node) {
   prevBtn.type = "button";
   prevBtn.textContent = "<";
   
-  const pageLabel = document.createElement("span");
-  pageLabel.style.fontSize = "12px";
-  pageLabel.style.color = "#ccc";
-  pageLabel.textContent = "1 / 1";
+  const pageSelect = document.createElement("select");
+  pageSelect.style.fontSize = "12px";
+  pageSelect.style.padding = "2px 4px";
+  pageSelect.addEventListener("change", () => {
+    currentPage = parseInt(pageSelect.value, 10) || 1;
+    loadCharacters().catch(err => status.textContent = `Error: ${String(err)}`);
+  });
   
   const nextBtn = document.createElement("button");
   nextBtn.type = "button";
@@ -245,7 +248,7 @@ function attachUI(node) {
 
   paginationRow.appendChild(randomBtn);
   paginationRow.appendChild(prevBtn);
-  paginationRow.appendChild(pageLabel);
+  paginationRow.appendChild(pageSelect);
   paginationRow.appendChild(nextBtn);
 
   randomBtn.addEventListener("click", () => {
@@ -423,7 +426,15 @@ function attachUI(node) {
     const total = data.total || 0;
     const limit = data.limit || 100;
     const pages = Math.max(1, Math.ceil(total / limit));
-    pageLabel.textContent = `${currentPage} / ${pages}`;
+    
+    pageSelect.innerHTML = "";
+    for (let i = 1; i <= pages; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = `${i} / ${pages}`;
+      if (i === currentPage) opt.selected = true;
+      pageSelect.appendChild(opt);
+    }
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= pages;
 
