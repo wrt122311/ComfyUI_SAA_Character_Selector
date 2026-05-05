@@ -206,6 +206,8 @@ function attachUI(node) {
       favToggleBtn.textContent = "☆ Fav";
       favToggleBtn.style.color = "#ccc";
     }
+    currentPage = 1;
+    currentSeed = "";
     loadCharacters().catch((err) => {
       status.textContent = `Filter failed: ${String(err)}`;
     });
@@ -220,6 +222,49 @@ function attachUI(node) {
   top.appendChild(group);
   top.appendChild(favToggleBtn);
   top.appendChild(refreshBtn);
+
+  const paginationRow = document.createElement("div");
+  paginationRow.className = "saa-top";
+  
+  const randomBtn = document.createElement("button");
+  randomBtn.type = "button";
+  randomBtn.textContent = "Random";
+  
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.textContent = "<";
+  
+  const pageLabel = document.createElement("span");
+  pageLabel.style.fontSize = "12px";
+  pageLabel.style.color = "#ccc";
+  pageLabel.textContent = "1 / 1";
+  
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.textContent = ">";
+
+  paginationRow.appendChild(randomBtn);
+  paginationRow.appendChild(prevBtn);
+  paginationRow.appendChild(pageLabel);
+  paginationRow.appendChild(nextBtn);
+
+  randomBtn.addEventListener("click", () => {
+    currentSeed = String(Math.floor(Math.random() * 1000000));
+    currentPage = 1;
+    loadCharacters().catch(err => status.textContent = `Error: ${String(err)}`);
+  });
+
+  prevBtn.addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      loadCharacters().catch(err => status.textContent = `Error: ${String(err)}`);
+    }
+  });
+
+  nextBtn.addEventListener("click", () => {
+    currentPage++;
+    loadCharacters().catch(err => status.textContent = `Error: ${String(err)}`);
+  });
 
   const progressRow = document.createElement("div");
   progressRow.className = "saa-progress-row";
@@ -265,6 +310,7 @@ function attachUI(node) {
   gridRow.appendChild(scrollWrap);
 
   wrap.appendChild(top);
+  wrap.appendChild(paginationRow);
   wrap.appendChild(progressRow);
   wrap.appendChild(status);
   wrap.appendChild(gridRow);
@@ -281,6 +327,9 @@ function attachUI(node) {
   let hasHydratedAfterReady = false;
   let lastSyncedGroupValue = "";
   let suppressWidgetCallback = false;
+  
+  let currentPage = 1;
+  let currentSeed = "";
 
   function updateResponsiveColumns() {
     const width = Math.max(320, wrap.clientWidth || 320);
@@ -365,11 +414,20 @@ function attachUI(node) {
     const q = encodeURIComponent(search.value || "");
     const g = encodeURIComponent(group.value || "All");
     const favOnly = node.__saaFavoritesOnly ? "true" : "false";
-    const data = await apiGet(`/saa_selector/characters?search=${q}&group=${g}&limit=200&favorites_only=${favOnly}`);
+    const s = encodeURIComponent(currentSeed || "");
+    const data = await apiGet(`/saa_selector/characters?search=${q}&group=${g}&limit=100&page=${currentPage}&seed=${s}&favorites_only=${favOnly}`);
     renderCards(node, grid, data.items || []);
     updateResponsiveColumns();
     updateScrollProgressFromGrid();
-    status.textContent = `Loaded ${data.items?.length || 0} items`;
+    
+    const total = data.total || 0;
+    const limit = data.limit || 100;
+    const pages = Math.max(1, Math.ceil(total / limit));
+    pageLabel.textContent = `${currentPage} / ${pages}`;
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= pages;
+
+    status.textContent = `Loaded ${data.items?.length || 0} items (Total: ${total})`;
   }
 
   async function syncFromSourceWidget(force = false) {
@@ -383,6 +441,8 @@ function attachUI(node) {
     }
     if (force || nextGroup !== lastSyncedGroupValue) {
       lastSyncedGroupValue = nextGroup;
+      currentPage = 1;
+      currentSeed = "";
       await loadCharacters();
     }
   }
@@ -424,6 +484,8 @@ function attachUI(node) {
     pLabel.textContent = "0%";
     hasHydratedAfterReady = false;
     lastIsLoading = true;
+    currentPage = 1;
+    currentSeed = "";
     await apiPost("/saa_selector/reload");
     refreshStatus();
   });
@@ -431,6 +493,8 @@ function attachUI(node) {
   search.addEventListener("input", () => {
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
+      currentPage = 1;
+      currentSeed = "";
       loadCharacters().catch((err) => {
         status.textContent = `Search failed: ${String(err)}`;
       });
@@ -438,6 +502,8 @@ function attachUI(node) {
   });
   searchClearBtn.addEventListener("click", () => {
     search.value = "";
+    currentPage = 1;
+    currentSeed = "";
     loadCharacters().catch((err) => {
       status.textContent = `Search failed: ${String(err)}`;
     });
@@ -455,6 +521,8 @@ function attachUI(node) {
       sourceWidget.value = "All";
       node.setDirtyCanvas(true, true);
     }
+    currentPage = 1;
+    currentSeed = "";
     loadCharacters().catch((err) => {
       status.textContent = `Filter failed: ${String(err)}`;
     });
@@ -477,6 +545,8 @@ function attachUI(node) {
       suppressWidgetCallback = false;
       node.setDirtyCanvas(true, true);
     }
+    currentPage = 1;
+    currentSeed = "";
     loadCharacters().catch((err) => {
       status.textContent = `Filter failed: ${String(err)}`;
     });

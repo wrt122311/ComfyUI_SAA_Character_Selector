@@ -253,12 +253,13 @@ class _SAADataStore:
                 result.append({"name": g, "count": counts.get(g, 0)})
         return result
 
-    def list_characters(self, search="", group="All", limit=120, favorites_only=False):
+    def list_characters(self, search="", group="All", limit=100, page=1, favorites_only=False, seed=None):
         with self._lock:
             chars = self._characters
             favs = self._favorites
         q = (search or "").strip().lower()
-        result = []
+        
+        filtered = []
         for item in chars:
             if favorites_only and item["id"] not in favs:
                 continue
@@ -267,6 +268,19 @@ class _SAADataStore:
             if q:
                 if q not in item["name_en"].lower() and q not in item["name_zh"].lower() and q not in item["origin"].lower():
                     continue
+            filtered.append(item)
+
+        if seed is not None and seed != "":
+            import random
+            rng = random.Random(seed)
+            rng.shuffle(filtered)
+
+        total = len(filtered)
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+
+        result = []
+        for item in filtered[start_idx:end_idx]:
             result.append(
                 {
                     "id": item["id"],
@@ -277,9 +291,7 @@ class _SAADataStore:
                     "is_favorite": item["id"] in favs,
                 }
             )
-            if len(result) >= limit:
-                break
-        return result
+        return {"items": result, "total": total, "page": page, "limit": limit}
 
     def get_character(self, char_id):
         item = self._resolve_character(char_id)
@@ -387,13 +399,20 @@ async def saa_selector_characters(request):
     search = request.query.get("search", "")
     group = request.query.get("group", "All")
     fav_only = request.query.get("favorites_only", "false").lower() == "true"
+    seed = request.query.get("seed", "")
     try:
-        limit = int(request.query.get("limit", "120"))
+        limit = int(request.query.get("limit", "100"))
     except ValueError:
-        limit = 120
-    limit = max(1, min(600, limit))
-    items = STORE.list_characters(search=search, group=group, limit=limit, favorites_only=fav_only)
-    return web.json_response({"items": items})
+        limit = 100
+    limit = max(1, limit)
+    try:
+        page = int(request.query.get("page", "1"))
+    except ValueError:
+        page = 1
+    page = max(1, page)
+
+    data = STORE.list_characters(search=search, group=group, limit=limit, page=page, favorites_only=fav_only, seed=seed)
+    return web.json_response(data)
 
 @PromptServer.instance.routes.post("/saa_selector/favorite/{char_id}")
 async def saa_selector_toggle_favorite(request):
