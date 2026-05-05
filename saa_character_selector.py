@@ -69,6 +69,9 @@ class _SAADataStore:
         self.favorites_file = self.root / "favorites.json"
         self._favorites = set()
         self._load_favorites()
+        self.favorite_groups_file = self.root / "favorite_groups.json"
+        self._favorite_groups = set()
+        self._load_favorite_groups()
 
     def _load_favorites(self):
         if self.favorites_file.exists():
@@ -94,6 +97,32 @@ class _SAADataStore:
                 self._favorites.add(char_id)
                 res = True
             self._save_favorites()
+            return res
+
+    def _load_favorite_groups(self):
+        if self.favorite_groups_file.exists():
+            try:
+                with open(self.favorite_groups_file, "r", encoding="utf-8") as f:
+                    self._favorite_groups = set(json.load(f))
+            except Exception:
+                self._favorite_groups = set()
+
+    def _save_favorite_groups(self):
+        try:
+            with open(self.favorite_groups_file, "w", encoding="utf-8") as f:
+                json.dump(list(self._favorite_groups), f, ensure_ascii=False)
+        except Exception:
+            pass
+
+    def toggle_favorite_group(self, group_name):
+        with self._lock:
+            if group_name in self._favorite_groups:
+                self._favorite_groups.remove(group_name)
+                res = False
+            else:
+                self._favorite_groups.add(group_name)
+                res = True
+            self._save_favorite_groups()
             return res
 
     def _migrate_legacy_cache(self):
@@ -245,12 +274,13 @@ class _SAADataStore:
             groups = list(self._groups)
             counts = dict(self._group_counts)
             total = len(self._characters)
+            fav_groups = self._favorite_groups
         result = []
         for g in groups:
             if g == "All":
-                result.append({"name": g, "count": total})
+                result.append({"name": g, "count": total, "is_favorite": False})
             else:
-                result.append({"name": g, "count": counts.get(g, 0)})
+                result.append({"name": g, "count": counts.get(g, 0), "is_favorite": g in fav_groups})
         return result
 
     def list_characters(self, search="", group="All", limit=100, page=1, favorites_only=False, seed=None):
@@ -424,6 +454,13 @@ async def saa_selector_toggle_favorite(request):
     real_id = item["id"]
     is_fav = STORE.toggle_favorite(real_id)
     return web.json_response({"id": real_id, "is_favorite": is_fav})
+
+@PromptServer.instance.routes.post("/saa_selector/favorite_group/{group_name}")
+async def saa_selector_toggle_favorite_group(request):
+    STORE.ensure_loaded(force=False)
+    group_name = urllib.parse.unquote(request.match_info.get("group_name", ""))
+    is_fav = STORE.toggle_favorite_group(group_name)
+    return web.json_response({"name": group_name, "is_favorite": is_fav})
 
 
 @PromptServer.instance.routes.get("/saa_selector/character/{char_id}")

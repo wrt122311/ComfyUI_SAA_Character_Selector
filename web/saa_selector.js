@@ -173,6 +173,38 @@ function attachUI(node) {
   const search = document.createElement("input");
   search.type = "text";
   search.placeholder = "Search name/origin";
+  search.setAttribute("list", "saa-search-history-list");
+  
+  let searchHistory = [];
+  try { searchHistory = JSON.parse(localStorage.getItem("saa_search_history") || "[]"); } catch(e) {}
+  
+  const searchDatalist = document.createElement("datalist");
+  searchDatalist.id = "saa-search-history-list";
+  searchWrap.appendChild(searchDatalist);
+  
+  const updateSearchHistory = (term) => {
+    if (!term) return;
+    searchHistory = searchHistory.filter(t => t !== term);
+    searchHistory.unshift(term);
+    if (searchHistory.length > 20) searchHistory.length = 20;
+    localStorage.setItem("saa_search_history", JSON.stringify(searchHistory));
+    renderSearchHistory();
+  };
+  
+  const renderSearchHistory = () => {
+    searchDatalist.innerHTML = "";
+    for (const term of searchHistory) {
+      const opt = document.createElement("option");
+      opt.value = term;
+      searchDatalist.appendChild(opt);
+    }
+  };
+  renderSearchHistory();
+
+  search.addEventListener("change", () => {
+    updateSearchHistory(search.value.trim());
+  });
+
   const searchClearBtn = document.createElement("button");
   searchClearBtn.type = "button";
   searchClearBtn.className = "saa-clear-btn";
@@ -193,6 +225,22 @@ function attachUI(node) {
   groupSearchWrap.appendChild(groupSearchClearBtn);
 
   const group = document.createElement("select");
+  const favGroupToggleBtn = document.createElement("button");
+  favGroupToggleBtn.type = "button";
+  favGroupToggleBtn.textContent = "☆";
+  favGroupToggleBtn.title = "Toggle Favorite Group";
+  favGroupToggleBtn.style.color = "#ccc";
+  favGroupToggleBtn.addEventListener("click", async () => {
+    const currentGroup = group.value;
+    if (!currentGroup || currentGroup === "All") return;
+    try {
+      await apiPost(`/saa_selector/favorite_group/${encodeURIComponent(currentGroup)}`);
+      await loadGroups();
+    } catch(err) {
+      status.textContent = `Fav group failed: ${String(err)}`;
+    }
+  });
+
   const favToggleBtn = document.createElement("button");
   favToggleBtn.type = "button";
   favToggleBtn.textContent = "☆ Fav";
@@ -220,6 +268,7 @@ function attachUI(node) {
   top.appendChild(searchWrap);
   top.appendChild(groupSearchWrap);
   top.appendChild(group);
+  top.appendChild(favGroupToggleBtn);
   top.appendChild(favToggleBtn);
   top.appendChild(refreshBtn);
 
@@ -368,18 +417,47 @@ function attachUI(node) {
       if (!q) return true;
       return name.toLowerCase().includes(q);
     });
-    const list = filtered.length > 0 ? filtered : allGroups;
-    for (const g of list || []) {
+    const list = filtered.length > 0 || q ? filtered : allGroups;
+    
+    const sortedList = [...list].sort((a, b) => {
+      const nameA = typeof a === "string" ? a : a.name;
+      const nameB = typeof b === "string" ? b : b.name;
+      if (nameA === "All") return -1;
+      if (nameB === "All") return 1;
+      const favA = typeof a === "string" ? false : !!a.is_favorite;
+      const favB = typeof b === "string" ? false : !!b.is_favorite;
+      if (favA && !favB) return -1;
+      if (!favA && favB) return 1;
+      return nameA.localeCompare(nameB);
+    });
+
+    for (const g of sortedList) {
       const groupName = typeof g === "string" ? g : g.name;
       const count = typeof g === "string" ? null : g.count;
+      const isFav = typeof g === "string" ? false : !!g.is_favorite;
       const opt = document.createElement("option");
       opt.value = groupName;
-      opt.textContent = count === null ? groupName : `${groupName} (${count})`;
+      let text = groupName;
+      if (isFav) text = "★ " + text;
+      opt.textContent = count === null ? text : `${text} (${count})`;
       group.appendChild(opt);
     }
-    node.__saaGroupNames = (allGroups || []).map((g) => (typeof g === "string" ? g : g.name));
+    
+    node.__saaGroupNames = (sortedList).map((g) => (typeof g === "string" ? g : g.name));
+    
+    const isCurrentFav = (allGroups || []).find(g => (typeof g === "string" ? g : g.name) === current)?.is_favorite;
+    if (isCurrentFav) {
+      favGroupToggleBtn.textContent = "★";
+      favGroupToggleBtn.style.color = "#ffb700";
+    } else {
+      favGroupToggleBtn.textContent = "☆";
+      favGroupToggleBtn.style.color = "#ccc";
+    }
+
     if (node.__saaGroupNames.includes(current)) {
       group.value = current;
+    } else {
+      group.value = "All";
     }
   }
 
